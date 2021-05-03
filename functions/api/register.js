@@ -8,7 +8,8 @@ const jwt = require('jsonwebtoken');
 const router = express.Router()
 const db = admin.firestore()
 
-async function SendMail(reciver){
+async function SendMail(reciver, token){
+    console.log('reciver', reciver);
     let transporter = nodemailer.createTransport({
         service:'gmail',
         auth:{
@@ -20,7 +21,9 @@ async function SendMail(reciver){
         from:"smile69LOR@gmail.com",
         to:reciver,
         subject:"Verify your account",
-        text:"Your verify code is " + 123456
+        text:"Thank you for register. Please click this link to verify your account : " +
+            "http://localhost:5000/weissschwarz-f48e0/us-central1/app/register/verify/" + 
+            token
     }
     try {
         await transporter.sendMail(mailOptions)
@@ -53,20 +56,39 @@ async function EncryptPassword(PlaintextPassword){
     }
 }
 
+function verifyToken(token){
+    try {
+        let decoded = jwt.verify(token, 'W31S5sCHwA2Z');
+        return {
+            message:'success',
+            decoded,
+        };
+    } catch (error) {
+        return {
+            message:'fail',
+            error,
+        };
+    }
+}
+
 router.post('/',async (req,res)=>{
     let email = req.body.email
     let username = req.body.username
     let password = req.body.password
 
     try {
-        let usernameResponse = await db.collection("user").where("username","==",username).get()
         let usernamechecked = []
+        let usernameResponse = await db.collection("user").where("username","==",username).get()
+        usernameResponse.forEach(item => usernamechecked.push(item.data()))
+        usernameResponse = await db.collection("register").where("username","==",username).get()
         usernameResponse.forEach(item => usernamechecked.push(item.data()))
         //check existed username
         if(usernamechecked.length === 0){
-            let emailResponse = await db.collection("user").where("email","==",email).get()
             let emailchecked = []
-            emailResponse.forEach(item=>emailchecked.push(item.data()))
+            let emailResponse = await db.collection("user").where("email","==",email).get()
+            emailResponse.forEach(item=>emailchecked.push(item.data()));
+            emailResponse = await db.collection("register").where("email", "==", email).get()
+            emailResponse.forEach(item=>emailchecked.push(item.data()));
             //check existed email
             if(emailchecked.length === 0){
                 //check corrected password
@@ -74,24 +96,24 @@ router.post('/',async (req,res)=>{
                     hash = await EncryptPassword(password)
                     //check create hash successed
                     if(hash !== password){
-                        password = hash
-                        let userId = uuidv4()
                         let data = {
-                            email,username,password,userId
+                            email,
+                            username,
+                            password:hash,
+                            userId:uuidv4()
                         }
-                        //save new user in database
-                        try{
-                            await db.collection("user").doc(userId).set(data)
-                            SendMail(data.email)
+                        //send email verification
+                        try {
+                            await db.collection('register').doc(data.userId).set(data);
+                            let token = jwt.sign(data, 'W31S5sCHwA2Z', { expiresIn: 60 * 60 });
+                            SendMail(data.email, token);
                             return res.json({
                                 status:"success",
                                 message:"save new user in database"
                             })
-                        }catch(error){
-                            return res.json({
-                                status:"fail",
-                                message:"error on save user in database"
-                            })
+                        } catch (error) {
+                            console.log(error);
+                            throw error;
                         }
                     }else{
                         return res.json({
@@ -127,8 +149,42 @@ router.post('/',async (req,res)=>{
     
 })
 
-router.post('/verify/:token', (req, res) =>{
-
+router.get('/verify/:token', async (req, res) =>{
+    let token = req.params.token;
+    let data = verifyToken(token);
+    if(data.message !== 'fail'){
+        try{
+            //check token is in firestore ?
+            const doc = await db.collection('register').doc(data.decoded.userId).get();
+            if(!doc.exists){
+                return res.json({
+                    status:"fail",
+                    message:"error, no user register in database"
+                })
+            }
+            await db.collection("user").doc(data.decoded.userId).set({
+                email:data.decoded.email,
+                password:data.decoded.password,
+                userId:data.decoded.userId,
+                username:data.decoded.username
+            })
+            //delete token in register
+            await db.collection('register').doc(data.decoded.userId).delete();
+            return res.json({
+                status:"success",
+                message:"save new user in database"
+            })
+        }catch(error){
+            return res.json({
+                status:"fail",
+                message:"error on save user in database"
+            })
+        }
+    }
+    return res.json({
+        status:'fail',
+        message:'your token is expired',
+    });
 })
 
 module.exports = router
