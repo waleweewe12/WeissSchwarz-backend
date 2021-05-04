@@ -9,7 +9,6 @@ const router = express.Router()
 const db = admin.firestore()
 
 async function SendMail(reciver, token){
-    console.log('reciver', reciver);
     let transporter = nodemailer.createTransport({
         service:'gmail',
         auth:{
@@ -26,9 +25,10 @@ async function SendMail(reciver, token){
             token
     }
     try {
-        await transporter.sendMail(mailOptions)
+        await transporter.sendMail(mailOptions);
     } catch (error) {
-        throw error
+        console.log(error);
+        throw error;
     }
 }
 
@@ -106,7 +106,7 @@ router.post('/',async (req,res)=>{
                         try {
                             await db.collection('register').doc(data.userId).set(data);
                             let token = jwt.sign(data, 'W31S5sCHwA2Z', { expiresIn: 60 * 60 });
-                            SendMail(data.email, token);
+                            await SendMail(data.email, token);
                             return res.json({
                                 status:"success",
                                 message:"save new user in database"
@@ -157,10 +157,7 @@ router.get('/verify/:token', async (req, res) =>{
             //check token is in firestore ?
             const doc = await db.collection('register').doc(data.decoded.userId).get();
             if(!doc.exists){
-                return res.json({
-                    status:"fail",
-                    message:"error, no user register in database"
-                })
+                return res.redirect('http://localhost:3000/register/fail');
             }
             await db.collection("user").doc(data.decoded.userId).set({
                 email:data.decoded.email,
@@ -170,10 +167,7 @@ router.get('/verify/:token', async (req, res) =>{
             })
             //delete token in register
             await db.collection('register').doc(data.decoded.userId).delete();
-            return res.json({
-                status:"success",
-                message:"save new user in database"
-            })
+            return res.redirect('http://localhost:3000/register/success');
         }catch(error){
             return res.json({
                 status:"fail",
@@ -181,10 +175,7 @@ router.get('/verify/:token', async (req, res) =>{
             })
         }
     }
-    return res.json({
-        status:'fail',
-        message:'your token is expired',
-    });
+    return res.redirect('http://localhost:3000/register/fail');
 })
 
 module.exports = router
