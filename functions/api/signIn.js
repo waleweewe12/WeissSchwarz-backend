@@ -3,6 +3,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const nodemailer = require('nodemailer');
 
 const router = express.Router()
 const db = admin.firestore()
@@ -57,6 +58,39 @@ function verifyToken(token){
     }
 }
 
+async function SendMail(reciver, id){
+    let transporter = nodemailer.createTransport({
+        service:'gmail',
+        auth:{
+            user:"smile69LOR@gmail.com",
+            pass:"weeweewee"
+        }
+    })
+    let mailOptions = {
+        from:"smile69LOR@gmail.com",
+        to:reciver,
+        subject:"Verify your account",
+        text:"Click this link to reset your password : " +
+            "http://localhost:5000/weissschwarz-f48e0/us-central1/app/signin/reset/" + id
+    }
+    try {
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.log(error);
+        throw error;
+    }
+}
+
+async function EncryptPassword(PlaintextPassword){
+    let saltRounds = 10
+    try {
+        let hash = bcrypt.hash(PlaintextPassword, saltRounds)
+        return hash
+    } catch (error) {
+        return PlaintextPassword
+    }
+}
+
 router.post('/', async (req, res) => {
     let username = req.body.username;
     let plaintextPassword = req.body.password;
@@ -93,7 +127,7 @@ router.post('/', async (req, res) => {
                     secure:false 
                 })
             */
-            //return token to user
+            //return token to user, user keep this token in localStorage
             return res.json({
                 status:'success',
                 message:'get user success',
@@ -135,5 +169,84 @@ router.post('/auth', async (req, res) => {
         message:'auth fail',
     });
 });
+
+router.post('/reset', async (req, res) => {
+    let email = req.body.email;
+    if(email !== undefined && email !== ''){
+        try {
+            let id = uuidv4();
+            await db.collection('resetPassword').doc(id).set({ email });
+            await SendMail(email, id);
+            return res.json({
+                status:'success',
+                message:'request success, please verify your email',
+            })
+        } catch (error) {
+            console.log(error);
+            return res.json({
+                status:'fail',
+                message:'request fail, somethng wrong please try again later',
+            })
+        }
+    }
+    return res.json({
+        status:'fail',
+        message:'please enter your email',
+    })
+})
+
+router.get('/reset/:id', async (req, res) => {
+    let id = req.params.id;
+    try {
+        const doc = await db.collection('resetPassword').doc(id).get();
+        if(doc.exists){
+            const user = await db.collection('user').where('email', '==', email).get();
+            if(user.empty){
+                return res.redirect('http://localhost:3000/resetpassword/fail');
+            }
+            return res.redirect('http://localhost:3000/resetpassword/success/' + id);
+        }
+    } catch (error) {
+        console.log(error);
+        return res.redirect('http://localhost:3000/resetpassword/fail');
+    }
+})
+
+router.post('/changePassword', async (req, res) => {
+    let id = req.body.id;
+    try {
+        let password = await EncryptPassword(req.body.password);
+        const doc = await db.collection('resetPassword').doc(id).get();
+        if(doc.exists){
+            let email = doc.data().email;
+            const user = await db.collection('user').where('email', '==', email).get();
+            if(!user.empty){
+                let userId = {};
+                user.forEach(item => {
+                    userId = item.id;
+                })
+                await db.collection('user').doc(userId).update({ password:password });
+                return res.json({
+                    status:'success',
+                    message:'password changed'
+                })
+            }
+            return res.json({
+                status:'fail',
+                message:'this email is unregister'
+            })
+        }
+        return res.json({
+            status:'fail',
+            message:'no resetPassword request in database'
+        })
+    } catch (error) {
+        console.log(error);
+        return res.json({
+            status:'fail',
+            message:'something wrong, please try again later'
+        })
+    }
+})
 
 module.exports = router;
