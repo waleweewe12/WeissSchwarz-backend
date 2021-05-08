@@ -200,11 +200,14 @@ router.get('/reset/:id', async (req, res) => {
     try {
         const doc = await db.collection('resetPassword').doc(id).get();
         if(doc.exists){
+            let email = doc.data().email;
             const user = await db.collection('user').where('email', '==', email).get();
             if(user.empty){
                 return res.redirect('http://localhost:3000/resetpassword/fail');
             }
             return res.redirect('http://localhost:3000/resetpassword/success/' + id);
+        }else{
+            return res.redirect('http://localhost:3000/resetpassword/fail');
         }
     } catch (error) {
         console.log(error);
@@ -226,6 +229,8 @@ router.post('/changePassword', async (req, res) => {
                     userId = item.id;
                 })
                 await db.collection('user').doc(userId).update({ password:password });
+                //delete id after password had reset
+                await db.collection('resetPassword').doc(id).delete();
                 return res.json({
                     status:'success',
                     message:'password changed'
