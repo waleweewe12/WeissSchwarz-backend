@@ -110,4 +110,28 @@ router.post('/deleteCard',(req,res)=>{
 
 })
 
+router.get('/getCardBySeriesName/:name', async (req, res) => {
+    const name = req.params.name;
+    try {
+        let doc = await db.collection('card').where('series', '==', name).get();
+        if(!doc.empty){
+            let cards = [];
+            doc.forEach(item => {
+                cards.push(item.data());
+            });
+            return res.json({
+                status:'success',
+                message:'get card by series success',
+                cards
+            });
+        }
+    } catch (error) {
+        console.log(error);
+    }
+    return res.json({
+        status:'fail',
+        message:'get card by sereis fail'
+    });
+});
+
 module.exports = router
