@@ -62,6 +62,43 @@ router.post('/getCard',(req,res)=>{
     });
 })
 
+router.post('/getCardByMultipleCardId', async (req, res) => {
+    let cardIds = req.body.cardIds;
+    let ids = cardIds.map(card => card.CardId);
+    let cardData = [];
+    //split ids 
+    let idsSplit = []
+    for(let i = 0; i < parseInt(ids.length / 10); i += 10){
+        idsSplit.push(ids.slice(i, i + 10));
+    }
+    idsSplit.push(ids.slice( parseInt(ids.length / 10) * 10, parseInt(ids.length / 10) * 10 + ids.length % 10 ));
+    //console.log(idsSplit);
+    try {
+        // Notes: query 'IN' in firestore limit up to 10 
+        for(let i = 0; i < idsSplit.length; i++){
+            let snapShot = await db.collection('card').where('CardId', 'in', idsSplit[i]).get();
+            snapShot.forEach((doc) => {
+                let cardInDeck = cardIds.find(card => card.CardId === doc.data().CardId);
+                let cardTemp = doc.data();
+                cardTemp['count'] = cardInDeck['count'];
+                cardData.push(cardTemp);
+            });
+        }
+        return res.json({
+            status:'success',
+            message:'get card by multiple id success',
+            cardData
+        })
+    } catch (error) {
+        console.log(error);
+        return res.json({
+            status:'fail',
+            message:'get card by multiple id fail',
+            error
+        })
+    }
+})
+
 router.post('/getCardBySeries',(req,res)=>{
     db.collection('card').where('series','==',req.body.series)
     .get()
