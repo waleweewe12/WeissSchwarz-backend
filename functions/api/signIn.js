@@ -110,10 +110,7 @@ router.post('/', async (req, res) => {
                     email:user.email,
                     signInKey
                 }, 
-                'W31S5sCHwA2Z', 
-                { 
-                    expiresIn: 60 * 60 
-                }
+                'W31S5sCHwA2Z'
             );
             //save SignInKey in database
             await saveSignInKey(user.userId, signInKey);

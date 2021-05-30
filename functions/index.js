@@ -16,6 +16,8 @@ const boardRouter = require('./api/board');
 const signInRouter = require('./api/signIn');
 const registerRouter = require('./api/register');
 const sereisRouter = require('./api/series');
+const userRouter = require('./api/user');
+const inviteRouter = require('./api/invite');
 
 app.use('/card',cardRouter);
 app.use('/deck',deckRouter);
@@ -23,5 +25,7 @@ app.use('/board',boardRouter);
 app.use('/signIn', signInRouter);
 app.use('/register',registerRouter);
 app.use('/series', sereisRouter);
+app.use('/user', userRouter);
+app.use('/invite', inviteRouter);
 
-exports.app = functions.https.onRequest(app)
+exports.app = functions.https.onRequest(app);

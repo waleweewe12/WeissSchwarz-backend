@@ -1,13 +1,20 @@
-const admin = require('firebase-admin')
-const express = require('express')
-const { v4: uuidv4 } = require('uuid')
+const admin = require('firebase-admin');
+const express = require('express');
+const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
 
-const router = express.Router()
-const db = admin.firestore()
+const router = express.Router();
+const db = admin.firestore();
 
-router.get('/',(req,res)=>{
-    res.json({message:'testtt'})
-})
+function verifytoken(token){
+    try {
+        let decoded = jwt.verify(token, 'W31S5sCHwA2Z');
+        return decoded;
+    } catch (error) {
+        console.log(error);
+        return {};
+    }
+};
 
 router.post('/createBoard',async (req,res)=>{
     let data = {
@@ -109,6 +116,142 @@ router.post('/getBoardById',(req,res)=>{
             error
         })
     });
+})
+
+router.post('/prepareBoard', async (req, res) => {
+    /**
+        request:{
+            deckId, userId
+        }
+     */
+    let bearerHeader = req.headers['authorization'];
+    let token = bearerHeader.split(' ')[1];
+    //verify token
+    let decoded = verifytoken(token);
+    if(Object.keys(decoded).length !== 0){
+        //getUserDeck
+        /*
+            userDeck:[
+                {
+                    cardUrl, cardText
+                }
+            ]
+        */
+       try {
+            let userDeck = []; 
+            let doc = await db.collection('deck').doc(req.body.deckId).get(); // ได้ deck มาแล้ว
+            let cardIds = doc.data()['CardIdList'].map(item => item.CardId); // เอาแค่ list ของการ์ดใน deck
+            let cardData = {};
+            /*
+                cardData:{
+                    มีทุกอย่างของ card แต่เราต้องการแค่ cardUrl, cardText
+                }
+            */
+            for(let i = 0; i < cardIds.length; i++){
+                let snapShot = await db.collection('card').where('CardId', '==', cardIds[i]).get();
+                cardData[cardIds[i]] = snapShot.docs[0].data();
+            }
+            let cardList = doc.data()['CardIdList']; // มีทั้ง CardId และ count
+            for(let i = 0; i < cardList.length; i++){
+                for(let j = 0; j < cardList[i].count; j++){
+                    userDeck.push({
+                        url:cardData[cardList[i].CardId]['cardUrl'],
+                        text:cardData[cardList[i].CardId]['text'],
+                    });
+                }
+            }
+            //get opponentId by invite collection
+            let invite = await db.collection('invite').doc(decoded.userId).get();
+            let opponentId = invite.data()['invited'];
+            //create empty board
+            let emptyBoard = {
+                deck:[],
+                backrow:['empty_card.jpg','empty_card.jpg'],
+                checkzone:[],
+                climaxzone:[],
+                clock:['empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg'],
+                frontrow:['empty_card.jpg','empty_card.jpg','empty_card.jpg'],
+                hand:[],
+                level:[],
+                memory:[],
+                stock:[],
+                waitingroom:[]
+            }
+            await db.collection("board").doc(decoded.userId).set(emptyBoard);
+            //delete invite by userId
+            await db.collection('invite').doc(decoded.userId).delete();
+            return res.json({
+                status:'success',
+                message:'prepare board success',
+                userDeck,
+                userId:decoded.userId,
+                opponentId
+            });
+       } catch (error) {
+            console.log(error);
+            return res.json({
+                status:'fail',
+                message:'something wrong, try again later',
+                error,
+            })
+       }
+    }
+    return res.json({
+        status:'fail',
+        message:'no user in database',
+    })
+})
+
+router.post('/prepareInvitedBoard', async (req, res) => {
+    let bearerHeader = req.headers['authorization'];
+    let token = bearerHeader.split(' ')[1];
+    //verify token
+    let decoded = verifytoken(token);
+    if(Object.keys(decoded).length !== 0){
+        //เตรียมเด็ค
+        let userDeck = []; 
+        let doc = await db.collection('deck').doc(req.body.deckId).get(); // ได้ deck มาแล้ว
+        let cardIds = doc.data()['CardIdList'].map(item => item.CardId); // เอาแค่ list ของการ์ดใน deck
+        let cardData = {};
+        for(let i = 0; i < cardIds.length; i++){
+            let snapShot = await db.collection('card').where('CardId', '==', cardIds[i]).get();
+            cardData[cardIds[i]] = snapShot.docs[0].data();
+        }
+        let cardList = doc.data()['CardIdList']; // มีทั้ง CardId และ count
+        for(let i = 0; i < cardList.length; i++){
+            for(let j = 0; j < cardList[i].count; j++){
+                userDeck.push({
+                    url:cardData[cardList[i].CardId]['cardUrl'],
+                    text:cardData[cardList[i].CardId]['text'],
+                });
+            }
+        }
+        //create empty board
+        let emptyBoard = {
+            deck:[],
+            backrow:['empty_card.jpg','empty_card.jpg'],
+            checkzone:[],
+            climaxzone:[],
+            clock:['empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg'],
+            frontrow:['empty_card.jpg','empty_card.jpg','empty_card.jpg'],
+            hand:[],
+            level:[],
+            memory:[],
+            stock:[],
+            waitingroom:[]
+        }
+        await db.collection("board").doc(decoded.userId).set(emptyBoard);
+        return res.json({
+            status:'success',
+            message:'prepare invite board success',
+            userDeck,
+            userId:decoded.userId,
+        });
+    }
+    return res.json({
+        status:'fail',
+        message:'no user in database',
+    })
 })
 
 module.exports = router

@@ -72,17 +72,18 @@ router.post('/getCardByMultipleCardId', async (req, res) => {
         idsSplit.push(ids.slice(i, i + 10));
     }
     idsSplit.push(ids.slice( parseInt(ids.length / 10) * 10, parseInt(ids.length / 10) * 10 + ids.length % 10 ));
-    //console.log(idsSplit);
     try {
         // Notes: query 'IN' in firestore limit up to 10 
-        for(let i = 0; i < idsSplit.length; i++){
-            let snapShot = await db.collection('card').where('CardId', 'in', idsSplit[i]).get();
-            snapShot.forEach((doc) => {
-                let cardInDeck = cardIds.find(card => card.CardId === doc.data().CardId);
-                let cardTemp = doc.data();
-                cardTemp['count'] = cardInDeck['count'];
-                cardData.push(cardTemp);
-            });
+        if(idsSplit[0].length !== 0){
+            for(let i = 0; i < idsSplit.length; i++){
+                let snapShot = await db.collection('card').where('CardId', 'in', idsSplit[i]).get();
+                snapShot.forEach((doc) => {
+                    let cardInDeck = cardIds.find(card => card.CardId === doc.data().CardId);
+                    let cardTemp = doc.data();
+                    cardTemp['count'] = cardInDeck['count'];
+                    cardData.push(cardTemp);
+                });
+            }
         }
         return res.json({
             status:'success',
@@ -151,6 +152,7 @@ router.get('/getCardBySeriesName/:name', async (req, res) => {
     const name = req.params.name;
     try {
         let doc = await db.collection('card').where('series', '==', name).get();
+        let series = await db.collection('series').where('seriesName', '==', name).get();
         if(!doc.empty){
             let cards = [];
             doc.forEach(item => {
@@ -159,7 +161,8 @@ router.get('/getCardBySeriesName/:name', async (req, res) => {
             return res.json({
                 status:'success',
                 message:'get card by series success',
-                cards
+                seriesImage:series.docs[0].data()['seriesImage'],
+                cards,
             });
         }
     } catch (error) {
@@ -170,5 +173,6 @@ router.get('/getCardBySeriesName/:name', async (req, res) => {
         message:'get card by sereis fail'
     });
 });
+
 
 module.exports = router
