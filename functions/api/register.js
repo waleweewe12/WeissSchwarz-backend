@@ -159,12 +159,28 @@ router.get('/verify/:token', async (req, res) =>{
             if(!doc.exists){
                 return res.redirect('http://localhost:3000/register/fail');
             }
+            //save new user in database
             await db.collection("user").doc(data.decoded.userId).set({
                 email:data.decoded.email,
                 password:data.decoded.password,
                 userId:data.decoded.userId,
                 username:data.decoded.username
             })
+            //create private board for new user
+            let emptyBoard = {
+                deck:[],
+                backrow:['empty_card.jpg','empty_card.jpg'],
+                checkzone:[],
+                climaxzone:[],
+                clock:['empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg','empty_card.jpg'],
+                frontrow:['empty_card.jpg','empty_card.jpg','empty_card.jpg'],
+                hand:[],
+                level:[],
+                memory:[],
+                stock:[],
+                waitingroom:[]
+            }
+            await db.collection('board').doc(data.decoded.userId).set(emptyBoard);
             //delete token in register
             await db.collection('register').doc(data.decoded.userId).delete();
             return res.redirect('http://localhost:3000/register/success');
