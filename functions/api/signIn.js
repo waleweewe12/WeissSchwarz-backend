@@ -155,6 +155,7 @@ router.post('/auth', async (req, res) => {
                 return res.json({
                     status:'success',
                     message:'auth success',
+                    username:data.decoded.username,
                 });
             } 
         } catch (error) {
