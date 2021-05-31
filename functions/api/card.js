@@ -143,11 +143,6 @@ router.get('/getCardId', async (req, res)=>{
     }
 })
 
-//Delete
-router.post('/deleteCard',(req,res)=>{
-
-})
-
 router.get('/getCardBySeriesName/:name', async (req, res) => {
     const name = req.params.name;
     try {

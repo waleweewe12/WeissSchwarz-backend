@@ -17,10 +17,6 @@ function verifytoken(token){
         return {};
     }
 }
-
-router.get('/',(req,res)=>{
-    res.json({message:'testtt'})
-})
 //Create
 router.post('/addDeck',async (req,res)=>{
     let bearerHeader = req.headers['authorization'];
