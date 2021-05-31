@@ -147,17 +147,19 @@ router.post('/prepareBoard', async (req, res) => {
                     มีทุกอย่างของ card แต่เราต้องการแค่ cardUrl, cardText
                 }
             */
-            for(let i = 0; i < cardIds.length; i++){
-                // let snapShot = await db.collection('card').where('CardId', '==', cardIds[i]).get();
-                // cardData[cardIds[i]] = snapShot.docs[0].data();
-                db.collection('card').where('CardId', '==', cardIds[i]).get()
-                .then((snapShot) => {
-                    cardData[cardIds[i]] = snapShot.docs[0].data();
-                }).catch((error) => {
-                    console.log(error);
-                    throw error;
-                });
-            }
+            /*original loop */
+            // for(let i = 0; i < cardIds.length; i++){
+            //     let snapShot = await db.collection('card').where('CardId', '==', cardIds[i]).get();
+            //     cardData[cardIds[i]] = snapShot.docs[0].data();
+            // }
+
+            /*fixed loop */
+            const promises = cardIds.map(async(cardId) => {
+                let snapShot = await db.collection('card').where('CardId', '==', cardId).get();
+                cardData[cardId] = snapShot.docs[0].data();
+            })
+            await Promise.all(promises);
+
             let cardList = doc.data()['CardIdList']; // มีทั้ง CardId และ count
             for(let i = 0; i < cardList.length; i++){
                 for(let j = 0; j < cardList[i].count; j++){

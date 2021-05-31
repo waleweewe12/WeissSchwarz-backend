@@ -35,7 +35,8 @@ async function verifyPassword(plaintextPassword, hashPassword){
 async function saveSignInKey(userId, signInKey){
     try {
         db.collection('signIn').doc(userId).set({
-            signInKey
+            signInKey,
+            status:'online'
         });
     } catch (error) {
         console.log(error);
