@@ -32,18 +32,6 @@ async function verifyPassword(plaintextPassword, hashPassword){
     return result;
 }
 
-async function saveSignInKey(userId, signInKey){
-    try {
-        db.collection('signIn').doc(userId).set({
-            signInKey,
-            status:'online'
-        });
-    } catch (error) {
-        console.log(error);
-        throw error;
-    }
-}
-
 function verifyToken(token){
     try {
         let decoded = jwt.verify(token, 'W31S5sCHwA2Z');
@@ -114,7 +102,10 @@ router.post('/', async (req, res) => {
                 'W31S5sCHwA2Z'
             );
             //save SignInKey in database
-            await saveSignInKey(user.userId, signInKey);
+            await db.collection('signIn').doc(user.userId).set({
+                signInKey,
+                status:'online'
+            });
             //set token in user cookie
             /*
                 Notes: firebase ไม่สามารถอ่าน cookie ได้
