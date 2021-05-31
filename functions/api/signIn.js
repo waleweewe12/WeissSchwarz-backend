@@ -244,4 +244,29 @@ router.post('/changePassword', async (req, res) => {
     }
 })
 
+router.post('/signOut', async (req, res) => {
+    let bearerHeader = req.headers['authorization'];
+    let token = bearerHeader.split(' ')[1];
+    let data = verifyToken(token);
+    if(data.message !== 'fail'){
+        try {
+            await db.collection('signIn').doc(data.decoded.userId).update({ status:'offline' });
+            return res.json({
+                status:'success',
+                message:'sign out success',
+            })
+        } catch (error) {
+            return res.json({
+                status:'fail',
+                message:'sign out fail',
+                error,
+            })
+        }
+    }
+    return res.json({
+        status:'fail',
+        message:'token is invalid',
+    })
+});
+
 module.exports = router;
