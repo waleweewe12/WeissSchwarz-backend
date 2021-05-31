@@ -14,7 +14,7 @@ function verifytoken(token){
         console.log(error);
         return {};
     }
-};
+}
 
 router.post('/createBoard',async (req,res)=>{
     let data = {
@@ -148,8 +148,15 @@ router.post('/prepareBoard', async (req, res) => {
                 }
             */
             for(let i = 0; i < cardIds.length; i++){
-                let snapShot = await db.collection('card').where('CardId', '==', cardIds[i]).get();
-                cardData[cardIds[i]] = snapShot.docs[0].data();
+                // let snapShot = await db.collection('card').where('CardId', '==', cardIds[i]).get();
+                // cardData[cardIds[i]] = snapShot.docs[0].data();
+                db.collection('card').where('CardId', '==', cardIds[i]).get()
+                .then((snapShot) => {
+                    cardData[cardIds[i]] = snapShot.docs[0].data();
+                }).catch((error) => {
+                    console.log(error);
+                    throw error;
+                });
             }
             let cardList = doc.data()['CardIdList']; // มีทั้ง CardId และ count
             for(let i = 0; i < cardList.length; i++){
